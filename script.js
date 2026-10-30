@@ -5,9 +5,13 @@ const transactionList = document.getElementById("transaction-list");
 let transactions = [];
 
 try {
-  transactions = JSON.parse(
+  const savedData = JSON.parse(
     localStorage.getItem("transactions")
-  ) || [];
+  );
+
+  if (Array.isArray(savedData)) {
+    transactions = savedData;
+  }
 } catch (error) {
   transactions = [];
 }
@@ -17,6 +21,7 @@ const moneyFormat = new Intl.NumberFormat("en-IN", {
   currency: "INR"
 });
 
+// Save transactions
 function saveTransactions() {
   localStorage.setItem(
     "transactions",
@@ -24,6 +29,7 @@ function saveTransactions() {
   );
 }
 
+// Update dashboard summary
 function updateSummary() {
   const income = transactions
     .filter(item => item.type === "income")
@@ -43,6 +49,7 @@ function updateSummary() {
     moneyFormat.format(income - expenses);
 }
 
+// Render transaction history
 function renderTransactions() {
   transactionList.replaceChildren();
 
@@ -67,6 +74,7 @@ function renderTransactions() {
     details.append(description, category);
 
     const amount = document.createElement("span");
+
     amount.textContent =
       `${item.type === "income" ? "+" : "-"}${moneyFormat.format(item.amount)}`;
 
@@ -87,13 +95,123 @@ function renderTransactions() {
     card.append(details, amount, deleteButton);
     transactionList.appendChild(card);
   });
+
+  updateCharts();
 }
 
+// Chart variables
+let incomeExpenseChart = null;
+let categoryChart = null;
+
+// Update analytics charts
+function updateCharts() {
+  const incomeCanvas =
+    document.getElementById("incomeExpenseChart");
+
+  const categoryCanvas =
+    document.getElementById("categoryChart");
+
+  if (!incomeCanvas || !categoryCanvas) return;
+
+  if (typeof Chart === "undefined") {
+    console.error("Chart.js is not loaded.");
+    return;
+  }
+
+  const totalIncome = transactions
+    .filter(item => item.type === "income")
+    .reduce((sum, item) => sum + item.amount, 0);
+
+  const totalExpenses = transactions
+    .filter(item => item.type === "expense")
+    .reduce((sum, item) => sum + item.amount, 0);
+
+  // Destroy old charts before updating
+  if (incomeExpenseChart) {
+    incomeExpenseChart.destroy();
+  }
+
+  if (categoryChart) {
+    categoryChart.destroy();
+  }
+
+  // Income vs Expenses Bar Chart
+  incomeExpenseChart = new Chart(incomeCanvas, {
+    type: "bar",
+
+    data: {
+      labels: ["Income", "Expenses"],
+
+      datasets: [{
+        label: "Amount (₹)",
+        data: [totalIncome, totalExpenses],
+        backgroundColor: ["#22c55e", "#ef4444"],
+        borderRadius: 8
+      }]
+    },
+
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  // Calculate category-wise expenses
+  const expenseCategories = {};
+
+  transactions
+    .filter(item => item.type === "expense")
+    .forEach(item => {
+      expenseCategories[item.category] =
+        (expenseCategories[item.category] || 0) + item.amount;
+    });
+
+  // Category-wise Doughnut Chart
+  categoryChart = new Chart(categoryCanvas, {
+    type: "doughnut",
+
+    data: {
+      labels: Object.keys(expenseCategories),
+
+      datasets: [{
+        data: Object.values(expenseCategories),
+
+        backgroundColor: [
+          "#3b82f6",
+          "#f59e0b",
+          "#ef4444",
+          "#8b5cf6",
+          "#14b8a6"
+        ]
+      }]
+    },
+
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+}
+
+// Add new transaction
 form.addEventListener("submit", function(event) {
   event.preventDefault();
 
   const description = document
-    .getElementById("description").value.trim();
+    .getElementById("description")
+    .value.trim();
 
   const amount = Number(
     document.getElementById("amount").value
@@ -125,5 +243,7 @@ form.addEventListener("submit", function(event) {
   form.reset();
 });
 
+// Initial dashboard loading
 renderTransactions();
 updateSummary();
+
