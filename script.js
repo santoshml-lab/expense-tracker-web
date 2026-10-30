@@ -10,7 +10,13 @@ try {
   );
 
   if (Array.isArray(savedData)) {
-    transactions = savedData;
+    transactions = savedData.filter(item =>
+      item &&
+      typeof item.description === "string" &&
+      Number.isFinite(item.amount) &&
+      item.amount > 0 &&
+      ["income", "expense"].includes(item.type)
+    );
   }
 } catch (error) {
   transactions = [];
@@ -21,7 +27,6 @@ const moneyFormat = new Intl.NumberFormat("en-IN", {
   currency: "INR"
 });
 
-// Save transactions
 function saveTransactions() {
   localStorage.setItem(
     "transactions",
@@ -29,7 +34,6 @@ function saveTransactions() {
   );
 }
 
-// Update dashboard summary
 function updateSummary() {
   const income = transactions
     .filter(item => item.type === "income")
@@ -49,7 +53,6 @@ function updateSummary() {
     moneyFormat.format(income - expenses);
 }
 
-// Render transaction history
 function renderTransactions() {
   transactionList.replaceChildren();
 
@@ -74,7 +77,6 @@ function renderTransactions() {
     details.append(description, category);
 
     const amount = document.createElement("span");
-
     amount.textContent =
       `${item.type === "income" ? "+" : "-"}${moneyFormat.format(item.amount)}`;
 
@@ -97,13 +99,13 @@ function renderTransactions() {
   });
 
   updateCharts();
+  updateMonthlyReport();
 }
 
-// Chart variables
 let incomeExpenseChart = null;
 let categoryChart = null;
+let monthlyChart = null;
 
-// Update analytics charts
 function updateCharts() {
   const incomeCanvas =
     document.getElementById("incomeExpenseChart");
@@ -112,82 +114,57 @@ function updateCharts() {
     document.getElementById("categoryChart");
 
   if (!incomeCanvas || !categoryCanvas) return;
+  if (typeof Chart === "undefined") return;
 
-  if (typeof Chart === "undefined") {
-    console.error("Chart.js is not loaded.");
-    return;
-  }
-
-  const totalIncome = transactions
+  const income = transactions
     .filter(item => item.type === "income")
     .reduce((sum, item) => sum + item.amount, 0);
 
-  const totalExpenses = transactions
+  const expenses = transactions
     .filter(item => item.type === "expense")
     .reduce((sum, item) => sum + item.amount, 0);
 
-  // Destroy old charts before updating
-  if (incomeExpenseChart) {
-    incomeExpenseChart.destroy();
-  }
+  if (incomeExpenseChart) incomeExpenseChart.destroy();
+  if (categoryChart) categoryChart.destroy();
 
-  if (categoryChart) {
-    categoryChart.destroy();
-  }
-
-  // Income vs Expenses Bar Chart
   incomeExpenseChart = new Chart(incomeCanvas, {
     type: "bar",
-
     data: {
       labels: ["Income", "Expenses"],
-
       datasets: [{
         label: "Amount (₹)",
-        data: [totalIncome, totalExpenses],
+        data: [income, expenses],
         backgroundColor: ["#22c55e", "#ef4444"],
         borderRadius: 8
       }]
     },
-
     options: {
       responsive: true,
       maintainAspectRatio: false,
-
       plugins: {
-        legend: {
-          display: false
-        }
+        legend: { display: false }
       },
-
       scales: {
-        y: {
-          beginAtZero: true
-        }
+        y: { beginAtZero: true }
       }
     }
   });
 
-  // Calculate category-wise expenses
-  const expenseCategories = {};
+  const categories = {};
 
   transactions
     .filter(item => item.type === "expense")
     .forEach(item => {
-      expenseCategories[item.category] =
-        (expenseCategories[item.category] || 0) + item.amount;
+      categories[item.category] =
+        (categories[item.category] || 0) + item.amount;
     });
 
-  // Category-wise Doughnut Chart
   categoryChart = new Chart(categoryCanvas, {
     type: "doughnut",
-
     data: {
-      labels: Object.keys(expenseCategories),
-
+      labels: Object.keys(categories),
       datasets: [{
-        data: Object.values(expenseCategories),
-
+        data: Object.values(categories),
         backgroundColor: [
           "#3b82f6",
           "#f59e0b",
@@ -197,7 +174,6 @@ function updateCharts() {
         ]
       }]
     },
-
     options: {
       responsive: true,
       maintainAspectRatio: false
@@ -205,13 +181,111 @@ function updateCharts() {
   });
 }
 
-// Add new transaction
+// Monthly expense report
+function updateMonthlyReport() {
+  const now = new Date();
+
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const currentMonthExpenses = transactions.filter(item => {
+    if (item.type !== "expense") return false;
+
+    const parts = item.date.split("/").map(Number);
+
+    if (parts.length !== 3) return false;
+
+    const [day, month, year] = parts;
+
+    return (
+      month === currentMonth + 1 &&
+      year === currentYear
+    );
+  });
+
+  const monthlyTotal = currentMonthExpenses.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  );
+
+  document.getElementById("monthlyExpense").textContent =
+    moneyFormat.format(monthlyTotal);
+
+  document.getElementById("monthlyTransactions").textContent =
+    currentMonthExpenses.length;
+
+  const monthlyCanvas =
+    document.getElementById("monthlyChart");
+
+  if (!monthlyCanvas || typeof Chart === "undefined") return;
+
+  // Last 6 months
+  const labels = [];
+  const monthlyData = [];
+
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(currentYear, currentMonth - i, 1);
+
+    const month = date.getMonth();
+    const year = date.getFullYear();
+
+    labels.push(
+      date.toLocaleDateString("en-IN", {
+        month: "short",
+        year: "2-digit"
+      })
+    );
+
+    const total = transactions
+      .filter(item => {
+        if (item.type !== "expense") return false;
+
+        const parts = item.date.split("/").map(Number);
+        if (parts.length !== 3) return false;
+
+        const [day, transactionMonth, transactionYear] = parts;
+
+        return (
+          transactionMonth === month + 1 &&
+          transactionYear === year
+        );
+      })
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    monthlyData.push(total);
+  }
+
+  if (monthlyChart) monthlyChart.destroy();
+
+  monthlyChart = new Chart(monthlyCanvas, {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Monthly Expenses (₹)",
+        data: monthlyData,
+        borderColor: "#3b82f6",
+        backgroundColor: "rgba(59, 130, 246, 0.15)",
+        fill: true,
+        tension: 0.35
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+// Add transaction
 form.addEventListener("submit", function(event) {
   event.preventDefault();
 
   const description = document
-    .getElementById("description")
-    .value.trim();
+    .getElementById("description").value.trim();
 
   const amount = Number(
     document.getElementById("amount").value
@@ -243,9 +317,10 @@ form.addEventListener("submit", function(event) {
   form.reset();
 });
 
-// Initial dashboard loading
+// Initial loading
 renderTransactions();
 updateSummary();
+
 
 
 
