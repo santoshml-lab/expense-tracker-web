@@ -10,6 +10,7 @@ const filterCategory = document.getElementById("filterCategory");
 const startDate = document.getElementById("startDate");
 const endDate = document.getElementById("endDate");
 const clearFiltersButton = document.getElementById("clearFilters");
+const exportCSVButton = document.getElementById("exportCSV");
 
 let transactions = [];
 let editingTransactionId = null;
@@ -121,6 +122,72 @@ function getFilteredTransactions() {
       matchesEndDate
     );
   });
+}
+
+// Export filtered transactions as CSV.
+function exportTransactionsToCSV() {
+  const filteredTransactions = getFilteredTransactions();
+
+  if (filteredTransactions.length === 0) {
+    alert("No transactions available to export.");
+    return;
+  }
+
+  const headers = [
+    "ID",
+    "Description",
+    "Amount",
+    "Type",
+    "Category",
+    "Date"
+  ];
+
+  const rows = filteredTransactions.map(item => [
+    item.id,
+    item.description,
+    item.amount,
+    item.type,
+    item.category,
+    toISODate(item.date)
+  ]);
+
+  // Escape special characters for CSV.
+  const escapeCSV = value => {
+    let text = String(value ?? "");
+
+    // Prevent spreadsheet formula execution.
+    if (/^[=+\-@]/.test(text)) {
+      text = "'" + text;
+    }
+
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const csvContent = [
+    headers,
+    ...rows
+  ]
+    .map(row => row.map(escapeCSV).join(","))
+    .join("\r\n");
+
+  // UTF-8 BOM for Excel compatibility.
+  const blob = new Blob(
+    ["\uFEFF" + csvContent],
+    { type: "text/csv;charset=utf-8;" }
+  );
+
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "expense-report.csv";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  // Delayed cleanup for browser download compatibility.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function renderTransactions() {
@@ -459,6 +526,11 @@ if (clearFiltersButton) {
   });
 }
 
+// CSV export button event.
+if (exportCSVButton) {
+  exportCSVButton.addEventListener("click", exportTransactionsToCSV);
+}
+
 // Add or update a transaction.
 form.addEventListener("submit", async function(event) {
   event.preventDefault();
@@ -535,6 +607,7 @@ form.addEventListener("submit", async function(event) {
 
 // Initial loading
 loadTransactions();
+ǰ
 
 
 
