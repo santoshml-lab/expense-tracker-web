@@ -5,20 +5,23 @@ const form = document.getElementById("transaction-form");
 const transactionList = document.getElementById("transaction-list");
 
 let transactions = [];
+let editingTransactionId = null;
 
-// Keep old localStorage data untouched.
 const moneyFormat = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR"
 });
 
-// Convert backend date (YYYY-MM-DD) to DD/MM/YYYY.
 function formatDate(dateString) {
   const [year, month, day] = dateString.split("-");
   return `${day}/${month}/${year}`;
 }
 
-// Load transactions from backend.
+function toISODate(dateString) {
+  const [day, month, year] = dateString.split("/");
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 async function loadTransactions() {
   try {
     transactionList.textContent = "Loading transactions...";
@@ -92,6 +95,16 @@ function renderTransactions() {
     amount.textContent =
       `${item.type === "income" ? "+" : "-"}${moneyFormat.format(item.amount)}`;
 
+    // Edit button
+    const editButton = document.createElement("button");
+    editButton.textContent = "Edit";
+    editButton.type = "button";
+
+    editButton.addEventListener("click", () => {
+      editTransaction(item);
+    });
+
+    // Delete button
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "Delete";
     deleteButton.type = "button";
@@ -100,13 +113,65 @@ function renderTransactions() {
       await deleteTransaction(item.id);
     });
 
-    card.append(details, amount, deleteButton);
+    card.append(details, amount, editButton, deleteButton);
     transactionList.appendChild(card);
   });
 
   updateSummary();
   updateCharts();
   updateMonthlyReport();
+}
+
+// Fill the form with existing transaction details.
+function editTransaction(item) {
+  editingTransactionId = item.id;
+
+  document.getElementById("description").value = item.description;
+  document.getElementById("amount").value = item.amount;
+  document.getElementById("type").value = item.type;
+  document.getElementById("category").value = item.category;
+
+  const submitButton = form.querySelector('button[type="submit"]');
+
+  if (submitButton) {
+    submitButton.textContent = "Update Transaction";
+  }
+
+  form.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+}
+
+// Save edited transaction using PUT API.
+async function updateTransaction(transaction) {
+  const response = await fetch(
+    `${API_URL}/transactions/${editingTransactionId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(transaction)
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not update transaction.");
+  }
+
+  await response.json();
+
+  editingTransactionId = null;
+  form.reset();
+
+  const submitButton = form.querySelector('button[type="submit"]');
+
+  if (submitButton) {
+    submitButton.textContent = "Add Transaction";
+  }
+
+  await loadTransactions();
 }
 
 async function deleteTransaction(id) {
@@ -298,7 +363,7 @@ function updateMonthlyReport() {
   });
 }
 
-// Add a new transaction to the backend.
+// Add or update a transaction.
 form.addEventListener("submit", async function(event) {
   event.preventDefault();
 
@@ -322,12 +387,19 @@ form.addEventListener("submit", async function(event) {
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
 
+  // Keep original date when editing.
+  const existingTransaction = transactions.find(
+    item => item.id === editingTransactionId
+  );
+
   const transaction = {
     description,
     amount,
     transaction_type: type,
     category,
-    date: `${year}-${month}-${day}`
+    date: existingTransaction
+      ? toISODate(existingTransaction.date)
+      : `${year}-${month}-${day}`
   };
 
   const submitButton = form.querySelector('button[type="submit"]');
@@ -335,22 +407,26 @@ form.addEventListener("submit", async function(event) {
   try {
     if (submitButton) submitButton.disabled = true;
 
-    const response = await fetch(`${API_URL}/transactions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(transaction)
-    });
+    if (editingTransactionId !== null) {
+      await updateTransaction(transaction);
+    } else {
+      const response = await fetch(`${API_URL}/transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(transaction)
+      });
 
-    if (!response.ok) {
-      throw new Error("Could not save transaction.");
+      if (!response.ok) {
+        throw new Error("Could not save transaction.");
+      }
+
+      await response.json();
+
+      form.reset();
+      await loadTransactions();
     }
-
-    await response.json();
-
-    form.reset();
-    await loadTransactions();
 
   } catch (error) {
     console.error(error);
@@ -363,6 +439,7 @@ form.addEventListener("submit", async function(event) {
 
 // Initial loading
 loadTransactions();
+
 
 
 
