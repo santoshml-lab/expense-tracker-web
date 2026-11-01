@@ -11,6 +11,7 @@ const startDate = document.getElementById("startDate");
 const endDate = document.getElementById("endDate");
 const clearFiltersButton = document.getElementById("clearFilters");
 const exportCSVButton = document.getElementById("exportCSV");
+const exportPDFButton = document.getElementById("exportPDF");
 
 let transactions = [];
 let editingTransactionId = null;
@@ -151,11 +152,9 @@ function exportTransactionsToCSV() {
     toISODate(item.date)
   ]);
 
-  // Escape special characters for CSV.
   const escapeCSV = value => {
     let text = String(value ?? "");
 
-    // Prevent spreadsheet formula execution.
     if (/^[=+\-@]/.test(text)) {
       text = "'" + text;
     }
@@ -170,7 +169,6 @@ function exportTransactionsToCSV() {
     .map(row => row.map(escapeCSV).join(","))
     .join("\r\n");
 
-  // UTF-8 BOM for Excel compatibility.
   const blob = new Blob(
     ["\uFEFF" + csvContent],
     { type: "text/csv;charset=utf-8;" }
@@ -186,8 +184,162 @@ function exportTransactionsToCSV() {
   link.click();
   link.remove();
 
-  // Delayed cleanup for browser download compatibility.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Export filtered transactions as PDF.
+function exportTransactionsToPDF() {
+  const filteredTransactions = getFilteredTransactions();
+
+  if (filteredTransactions.length === 0) {
+    alert("No transactions available to export.");
+    return;
+  }
+
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert("PDF library could not load. Please refresh the page.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+
+  const income = filteredTransactions
+    .filter(item => item.type === "income")
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  const expenses = filteredTransactions
+    .filter(item => item.type === "expense")
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  const balance = income - expenses;
+
+  // Report heading
+  pdf.setFontSize(20);
+  pdf.setTextColor(30, 64, 120);
+  pdf.text("EXPENSE TRACKER REPORT", 14, 20);
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(100, 100, 100);
+
+  pdf.text(
+    `Generated: ${new Date().toLocaleDateString("en-IN")}`,
+    14,
+    29
+  );
+
+  // Summary section
+  pdf.setFontSize(12);
+  pdf.setTextColor(0, 0, 0);
+
+  pdf.text("FINANCIAL SUMMARY", 14, 43);
+
+  pdf.setFontSize(10);
+
+  pdf.text(`Total Income: Rs. ${income.toFixed(2)}`, 14, 53);
+  pdf.text(`Total Expenses: Rs. ${expenses.toFixed(2)}`, 14, 61);
+  pdf.text(`Remaining Balance: Rs. ${balance.toFixed(2)}`, 14, 69);
+
+  pdf.text(
+    `Total Transactions: ${filteredTransactions.length}`,
+    14,
+    77
+  );
+
+  // Table heading
+  let y = 91;
+
+  const columns = [
+    { title: "ID", x: 14 },
+    { title: "Description", x: 27 },
+    { title: "Amount", x: 88 },
+    { title: "Type", x: 116 },
+    { title: "Category", x: 139 },
+    { title: "Date", x: 174 }
+  ];
+
+  function drawTableHeader() {
+    pdf.setFillColor(30, 64, 120);
+    pdf.rect(12, y - 6, 186, 10, "F");
+
+    pdf.setFontSize(8);
+    pdf.setTextColor(255, 255, 255);
+
+    columns.forEach(column => {
+      pdf.text(column.title, column.x, y);
+    });
+
+    y += 9;
+    pdf.setTextColor(0, 0, 0);
+  }
+
+  drawTableHeader();
+
+  // Transaction rows
+  filteredTransactions.forEach((item, index) => {
+
+    if (y > 275) {
+      pdf.addPage();
+      y = 20;
+      drawTableHeader();
+    }
+
+    const description = pdf.splitTextToSize(
+      String(item.description),
+      55
+    );
+
+    const category = pdf.splitTextToSize(
+      String(item.category),
+      28
+    );
+
+    const rowHeight = Math.max(
+      9,
+      description.length * 4,
+      category.length * 4
+    );
+
+    if (index % 2 === 0) {
+      pdf.setFillColor(240, 244, 250);
+      pdf.rect(12, y - 5, 186, rowHeight, "F");
+    }
+
+    pdf.setFontSize(8);
+
+    pdf.text(String(item.id), 14, y);
+    pdf.text(description, 27, y);
+
+    pdf.text(
+      Number(item.amount).toFixed(2),
+      88,
+      y
+    );
+
+    pdf.text(item.type, 116, y);
+    pdf.text(category, 139, y);
+    pdf.text(item.date, 174, y);
+
+    y += rowHeight + 3;
+  });
+
+  // Footer on every page
+  const pageCount = pdf.internal.getNumberOfPages();
+
+  for (let page = 1; page <= pageCount; page++) {
+    pdf.setPage(page);
+
+    pdf.setFontSize(8);
+    pdf.setTextColor(120, 120, 120);
+
+    pdf.text(
+      `Expense Tracker | Page ${page} of ${pageCount}`,
+      14,
+      290
+    );
+  }
+
+  pdf.save("expense-report.pdf");
 }
 
 function renderTransactions() {
@@ -224,7 +376,6 @@ function renderTransactions() {
     amount.textContent =
       `${item.type === "income" ? "+" : "-"}${moneyFormat.format(item.amount)}`;
 
-    // Edit button
     const editButton = document.createElement("button");
     editButton.textContent = "Edit";
     editButton.type = "button";
@@ -233,7 +384,6 @@ function renderTransactions() {
       editTransaction(item);
     });
 
-    // Delete button
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "Delete";
     deleteButton.type = "button";
@@ -531,6 +681,11 @@ if (exportCSVButton) {
   exportCSVButton.addEventListener("click", exportTransactionsToCSV);
 }
 
+// PDF export button event.
+if (exportPDFButton) {
+  exportPDFButton.addEventListener("click", exportTransactionsToPDF);
+}
+
 // Add or update a transaction.
 form.addEventListener("submit", async function(event) {
   event.preventDefault();
@@ -607,7 +762,7 @@ form.addEventListener("submit", async function(event) {
 
 // Initial loading
 loadTransactions();
-ǰ
+
 
 
 
