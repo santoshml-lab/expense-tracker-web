@@ -4,6 +4,13 @@ const API_URL = "https://expense-tracker-backend-bxef.onrender.com";
 const form = document.getElementById("transaction-form");
 const transactionList = document.getElementById("transaction-list");
 
+const searchInput = document.getElementById("searchTransaction");
+const filterType = document.getElementById("filterType");
+const filterCategory = document.getElementById("filterCategory");
+const startDate = document.getElementById("startDate");
+const endDate = document.getElementById("endDate");
+const clearFiltersButton = document.getElementById("clearFilters");
+
 let transactions = [];
 let editingTransactionId = null;
 
@@ -68,16 +75,71 @@ function updateSummary() {
     moneyFormat.format(income - expenses);
 }
 
+// Apply all selected filters to transactions.
+function getFilteredTransactions() {
+  const searchText = searchInput
+    ? searchInput.value.trim().toLowerCase()
+    : "";
+
+  const selectedType = filterType
+    ? filterType.value
+    : "all";
+
+  const selectedCategory = filterCategory
+    ? filterCategory.value
+    : "all";
+
+  const fromDate = startDate ? startDate.value : "";
+  const toDate = endDate ? endDate.value : "";
+
+  return transactions.filter(item => {
+    const matchesSearch =
+      item.description.toLowerCase().includes(searchText) ||
+      item.category.toLowerCase().includes(searchText);
+
+    const matchesType =
+      selectedType === "all" ||
+      item.type === selectedType;
+
+    const matchesCategory =
+      selectedCategory === "all" ||
+      item.category === selectedCategory;
+
+    const transactionDate = toISODate(item.date);
+
+    const matchesStartDate =
+      !fromDate || transactionDate >= fromDate;
+
+    const matchesEndDate =
+      !toDate || transactionDate <= toDate;
+
+    return (
+      matchesSearch &&
+      matchesType &&
+      matchesCategory &&
+      matchesStartDate &&
+      matchesEndDate
+    );
+  });
+}
+
 function renderTransactions() {
   transactionList.replaceChildren();
+
+  const filteredTransactions = getFilteredTransactions();
 
   if (transactions.length === 0) {
     const message = document.createElement("p");
     message.textContent = "No transactions yet.";
     transactionList.appendChild(message);
+
+  } else if (filteredTransactions.length === 0) {
+    const message = document.createElement("p");
+    message.textContent = "No matching transactions found.";
+    transactionList.appendChild(message);
   }
 
-  transactions.forEach(item => {
+  filteredTransactions.forEach(item => {
     const card = document.createElement("div");
     card.className = "transaction-item";
 
@@ -363,6 +425,40 @@ function updateMonthlyReport() {
   });
 }
 
+// Search and filter event listeners.
+if (searchInput) {
+  searchInput.addEventListener("input", renderTransactions);
+}
+
+if (filterType) {
+  filterType.addEventListener("change", renderTransactions);
+}
+
+if (filterCategory) {
+  filterCategory.addEventListener("change", renderTransactions);
+}
+
+if (startDate) {
+  startDate.addEventListener("change", renderTransactions);
+}
+
+if (endDate) {
+  endDate.addEventListener("change", renderTransactions);
+}
+
+// Reset all filters.
+if (clearFiltersButton) {
+  clearFiltersButton.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    if (filterType) filterType.value = "all";
+    if (filterCategory) filterCategory.value = "all";
+    if (startDate) startDate.value = "";
+    if (endDate) endDate.value = "";
+
+    renderTransactions();
+  });
+}
+
 // Add or update a transaction.
 form.addEventListener("submit", async function(event) {
   event.preventDefault();
@@ -439,6 +535,7 @@ form.addEventListener("submit", async function(event) {
 
 // Initial loading
 loadTransactions();
+
 
 
 
