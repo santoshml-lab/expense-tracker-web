@@ -1,37 +1,49 @@
 
+const API_URL = "https://expense-tracker-backend-bxef.onrender.com";
+
 const form = document.getElementById("transaction-form");
 const transactionList = document.getElementById("transaction-list");
 
 let transactions = [];
 
-try {
-  const savedData = JSON.parse(
-    localStorage.getItem("transactions")
-  );
-
-  if (Array.isArray(savedData)) {
-    transactions = savedData.filter(item =>
-      item &&
-      typeof item.description === "string" &&
-      Number.isFinite(item.amount) &&
-      item.amount > 0 &&
-      ["income", "expense"].includes(item.type)
-    );
-  }
-} catch (error) {
-  transactions = [];
-}
-
+// Keep old localStorage data untouched.
 const moneyFormat = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR"
 });
 
-function saveTransactions() {
-  localStorage.setItem(
-    "transactions",
-    JSON.stringify(transactions)
-  );
+// Convert backend date (YYYY-MM-DD) to DD/MM/YYYY.
+function formatDate(dateString) {
+  const [year, month, day] = dateString.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+// Load transactions from backend.
+async function loadTransactions() {
+  try {
+    transactionList.textContent = "Loading transactions...";
+
+    const response = await fetch(`${API_URL}/transactions`);
+
+    if (!response.ok) {
+      throw new Error("Could not load transactions.");
+    }
+
+    const data = await response.json();
+
+    transactions = data.map(item => ({
+      ...item,
+      type: item.transaction_type,
+      date: formatDate(item.date)
+    }));
+
+    renderTransactions();
+
+  } catch (error) {
+    console.error(error);
+    transactionList.textContent =
+      "Unable to load transactions. Please refresh the page.";
+  }
 }
 
 function updateSummary() {
@@ -84,22 +96,35 @@ function renderTransactions() {
     deleteButton.textContent = "Delete";
     deleteButton.type = "button";
 
-    deleteButton.addEventListener("click", () => {
-      transactions = transactions.filter(
-        transaction => transaction.id !== item.id
-      );
-
-      saveTransactions();
-      renderTransactions();
-      updateSummary();
+    deleteButton.addEventListener("click", async () => {
+      await deleteTransaction(item.id);
     });
 
     card.append(details, amount, deleteButton);
     transactionList.appendChild(card);
   });
 
+  updateSummary();
   updateCharts();
   updateMonthlyReport();
+}
+
+async function deleteTransaction(id) {
+  try {
+    const response = await fetch(`${API_URL}/transactions/${id}`, {
+      method: "DELETE"
+    });
+
+    if (!response.ok) {
+      throw new Error("Could not delete transaction.");
+    }
+
+    await loadTransactions();
+
+  } catch (error) {
+    console.error(error);
+    alert("Unable to delete transaction. Please try again.");
+  }
 }
 
 let incomeExpenseChart = null;
@@ -191,11 +216,7 @@ function updateMonthlyReport() {
   const currentMonthExpenses = transactions.filter(item => {
     if (item.type !== "expense") return false;
 
-    const parts = item.date.split("/").map(Number);
-
-    if (parts.length !== 3) return false;
-
-    const [day, month, year] = parts;
+    const [day, month, year] = item.date.split("/").map(Number);
 
     return (
       month === currentMonth + 1 &&
@@ -219,7 +240,6 @@ function updateMonthlyReport() {
 
   if (!monthlyCanvas || typeof Chart === "undefined") return;
 
-  // Last 6 months
   const labels = [];
   const monthlyData = [];
 
@@ -240,10 +260,8 @@ function updateMonthlyReport() {
       .filter(item => {
         if (item.type !== "expense") return false;
 
-        const parts = item.date.split("/").map(Number);
-        if (parts.length !== 3) return false;
-
-        const [day, transactionMonth, transactionYear] = parts;
+        const [day, transactionMonth, transactionYear] =
+          item.date.split("/").map(Number);
 
         return (
           transactionMonth === month + 1 &&
@@ -280,8 +298,8 @@ function updateMonthlyReport() {
   });
 }
 
-// Add transaction
-form.addEventListener("submit", function(event) {
+// Add a new transaction to the backend.
+form.addEventListener("submit", async function(event) {
   event.preventDefault();
 
   const description = document
@@ -299,27 +317,53 @@ form.addEventListener("submit", function(event) {
     return;
   }
 
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
   const transaction = {
-    id: Date.now().toString() + Math.random().toString(16).slice(2),
     description,
     amount,
-    type,
+    transaction_type: type,
     category,
-    date: new Date().toLocaleDateString("en-IN")
+    date: `${year}-${month}-${day}`
   };
 
-  transactions.unshift(transaction);
+  const submitButton = form.querySelector('button[type="submit"]');
 
-  saveTransactions();
-  renderTransactions();
-  updateSummary();
+  try {
+    if (submitButton) submitButton.disabled = true;
 
-  form.reset();
+    const response = await fetch(`${API_URL}/transactions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(transaction)
+    });
+
+    if (!response.ok) {
+      throw new Error("Could not save transaction.");
+    }
+
+    await response.json();
+
+    form.reset();
+    await loadTransactions();
+
+  } catch (error) {
+    console.error(error);
+    alert("Unable to save transaction. Please try again.");
+
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
 });
 
 // Initial loading
-renderTransactions();
-updateSummary();
+loadTransactions();
+
 
 
 
