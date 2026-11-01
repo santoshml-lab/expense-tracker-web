@@ -73,46 +73,80 @@
 
             </form>
         </section>
-        
-<section class="charts-section">
-  <h2>Expense Analytics</h2>
 
-  <div class="chart-container">
-    <h3>Income vs Expenses</h3>
-    <canvas id="incomeExpenseChart"></canvas>
-  </div>
+        <section class="charts-section">
+            <h2>Expense Analytics</h2>
 
-  <div class="chart-container">
-    <h3>Category-wise Expenses</h3>
-    <canvas id="categoryChart"></canvas>
-  </div>
-</section>
-        
-<section class="monthly-report">
-  <h2>Monthly Expense Report</h2>
+            <div class="chart-container">
+                <h3>Income vs Expenses</h3>
+                <canvas id="incomeExpenseChart"></canvas>
+            </div>
 
-  <div class="monthly-summary">
-    <div class="report-card">
-      <h3>Current Month Expense</h3>
-      <p id="monthlyExpense">₹0.00</p>
-    </div>
+            <div class="chart-container">
+                <h3>Category-wise Expenses</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </section>
 
-    <div class="report-card">
-      <h3>Total Transactions</h3>
-      <p id="monthlyTransactions">0</p>
-    </div>
-  </div>
+        <section class="monthly-report">
+            <h2>Monthly Expense Report</h2>
 
-  <div class="chart-container">
-    <h3>Monthly Spending Trend</h3>
-    <canvas id="monthlyChart"></canvas>
-  </div>
-</section>
+            <div class="monthly-summary">
+                <div class="report-card">
+                    <h3>Current Month Expense</h3>
+                    <p id="monthlyExpense">₹0.00</p>
+                </div>
 
+                <div class="report-card">
+                    <h3>Total Transactions</h3>
+                    <p id="monthlyTransactions">0</p>
+                </div>
+            </div>
 
+            <div class="chart-container">
+                <h3>Monthly Spending Trend</h3>
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </section>
 
         <section class="history">
             <h2>Transaction History</h2>
+
+            <!-- Search and Filter Controls -->
+            <div class="filter-section">
+
+                <input
+                    type="text"
+                    id="searchTransaction"
+                    placeholder="Search transaction..."
+                >
+
+                <select id="filterType">
+                    <option value="all">All Types</option>
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+
+                <select id="filterCategory">
+                    <option value="all">All Categories</option>
+                    <option value="Salary">Salary</option>
+                    <option value="Food">Food</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Shopping">Shopping</option>
+                    <option value="Other">Other</option>
+                </select>
+
+                <label for="startDate">From Date</label>
+                <input type="date" id="startDate">
+
+                <label for="endDate">To Date</label>
+                <input type="date" id="endDate">
+
+                <button type="button" id="clearFilters">
+                    Clear Filters
+                </button>
+
+            </div>
 
             <div id="transaction-list">
                 No transactions yet.
@@ -120,9 +154,10 @@
         </section>
 
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>
 
 </body>
 </html>
+
