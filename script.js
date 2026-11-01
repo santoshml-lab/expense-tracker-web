@@ -13,6 +13,12 @@ const clearFiltersButton = document.getElementById("clearFilters");
 const exportCSVButton = document.getElementById("exportCSV");
 const exportPDFButton = document.getElementById("exportPDF");
 
+// Date-wise dashboard elements
+const dashboardStartDate = document.getElementById("dashboardStartDate");
+const dashboardEndDate = document.getElementById("dashboardEndDate");
+const applyDashboardDates = document.getElementById("applyDashboardDates");
+const resetDashboardDates = document.getElementById("resetDashboardDates");
+
 let transactions = [];
 let editingTransactionId = null;
 
@@ -51,6 +57,9 @@ async function loadTransactions() {
 
     renderTransactions();
 
+    // Refresh date-wise report after loading data
+    updateDateRangeReport();
+
   } catch (error) {
     console.error(error);
     transactionList.textContent =
@@ -61,11 +70,11 @@ async function loadTransactions() {
 function updateSummary() {
   const income = transactions
     .filter(item => item.type === "income")
-    .reduce((total, item) => total + item.amount, 0);
+    .reduce((total, item) => total + Number(item.amount), 0);
 
   const expenses = transactions
     .filter(item => item.type === "expense")
-    .reduce((total, item) => total + item.amount, 0);
+    .reduce((total, item) => total + Number(item.amount), 0);
 
   document.getElementById("income").textContent =
     moneyFormat.format(income);
@@ -75,6 +84,45 @@ function updateSummary() {
 
   document.getElementById("balance").textContent =
     moneyFormat.format(income - expenses);
+}
+
+// Date-wise dashboard report
+function updateDateRangeReport() {
+  if (
+    !dashboardStartDate ||
+    !dashboardEndDate
+  ) return;
+
+  const fromDate = dashboardStartDate.value;
+  const toDate = dashboardEndDate.value;
+
+  const dateRangeTransactions = transactions.filter(item => {
+    const transactionDate = toISODate(item.date);
+
+    const matchesStart = !fromDate || transactionDate >= fromDate;
+    const matchesEnd = !toDate || transactionDate <= toDate;
+
+    return matchesStart && matchesEnd;
+  });
+
+  const income = dateRangeTransactions
+    .filter(item => item.type === "income")
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  const expenses = dateRangeTransactions
+    .filter(item => item.type === "expense")
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  const balance = income - expenses;
+
+  document.getElementById("dateRangeIncome").textContent =
+    moneyFormat.format(income);
+
+  document.getElementById("dateRangeExpenses").textContent =
+    moneyFormat.format(expenses);
+
+  document.getElementById("dateRangeBalance").textContent =
+    moneyFormat.format(balance);
 }
 
 // Apply all selected filters to transactions.
@@ -214,7 +262,6 @@ function exportTransactionsToPDF() {
 
   const balance = income - expenses;
 
-  // Report heading
   pdf.setFontSize(20);
   pdf.setTextColor(30, 64, 120);
   pdf.text("EXPENSE TRACKER REPORT", 14, 20);
@@ -228,25 +275,16 @@ function exportTransactionsToPDF() {
     29
   );
 
-  // Summary section
   pdf.setFontSize(12);
   pdf.setTextColor(0, 0, 0);
-
   pdf.text("FINANCIAL SUMMARY", 14, 43);
 
   pdf.setFontSize(10);
-
   pdf.text(`Total Income: Rs. ${income.toFixed(2)}`, 14, 53);
   pdf.text(`Total Expenses: Rs. ${expenses.toFixed(2)}`, 14, 61);
   pdf.text(`Remaining Balance: Rs. ${balance.toFixed(2)}`, 14, 69);
+  pdf.text(`Total Transactions: ${filteredTransactions.length}`, 14, 77);
 
-  pdf.text(
-    `Total Transactions: ${filteredTransactions.length}`,
-    14,
-    77
-  );
-
-  // Table heading
   let y = 91;
 
   const columns = [
@@ -275,15 +313,7 @@ function exportTransactionsToPDF() {
 
   drawTableHeader();
 
-  // Transaction rows
   filteredTransactions.forEach((item, index) => {
-
-    if (y > 275) {
-      pdf.addPage();
-      y = 20;
-      drawTableHeader();
-    }
-
     const description = pdf.splitTextToSize(
       String(item.description),
       55
@@ -300,6 +330,12 @@ function exportTransactionsToPDF() {
       category.length * 4
     );
 
+    if (y + rowHeight > 275) {
+      pdf.addPage();
+      y = 20;
+      drawTableHeader();
+    }
+
     if (index % 2 === 0) {
       pdf.setFillColor(240, 244, 250);
       pdf.rect(12, y - 5, 186, rowHeight, "F");
@@ -309,13 +345,7 @@ function exportTransactionsToPDF() {
 
     pdf.text(String(item.id), 14, y);
     pdf.text(description, 27, y);
-
-    pdf.text(
-      Number(item.amount).toFixed(2),
-      88,
-      y
-    );
-
+    pdf.text(Number(item.amount).toFixed(2), 88, y);
     pdf.text(item.type, 116, y);
     pdf.text(category, 139, y);
     pdf.text(item.date, 174, y);
@@ -323,12 +353,10 @@ function exportTransactionsToPDF() {
     y += rowHeight + 3;
   });
 
-  // Footer on every page
   const pageCount = pdf.internal.getNumberOfPages();
 
   for (let page = 1; page <= pageCount; page++) {
     pdf.setPage(page);
-
     pdf.setFontSize(8);
     pdf.setTextColor(120, 120, 120);
 
@@ -399,6 +427,7 @@ function renderTransactions() {
   updateSummary();
   updateCharts();
   updateMonthlyReport();
+  updateDateRangeReport();
 }
 
 // Fill the form with existing transaction details.
@@ -487,11 +516,11 @@ function updateCharts() {
 
   const income = transactions
     .filter(item => item.type === "income")
-    .reduce((sum, item) => sum + item.amount, 0);
+    .reduce((sum, item) => sum + Number(item.amount), 0);
 
   const expenses = transactions
     .filter(item => item.type === "expense")
-    .reduce((sum, item) => sum + item.amount, 0);
+    .reduce((sum, item) => sum + Number(item.amount), 0);
 
   if (incomeExpenseChart) incomeExpenseChart.destroy();
   if (categoryChart) categoryChart.destroy();
@@ -525,7 +554,7 @@ function updateCharts() {
     .filter(item => item.type === "expense")
     .forEach(item => {
       categories[item.category] =
-        (categories[item.category] || 0) + item.amount;
+        (categories[item.category] || 0) + Number(item.amount);
     });
 
   categoryChart = new Chart(categoryCanvas, {
@@ -569,7 +598,7 @@ function updateMonthlyReport() {
   });
 
   const monthlyTotal = currentMonthExpenses.reduce(
-    (sum, item) => sum + item.amount,
+    (sum, item) => sum + Number(item.amount),
     0
   );
 
@@ -612,7 +641,7 @@ function updateMonthlyReport() {
           transactionYear === year
         );
       })
-      .reduce((sum, item) => sum + item.amount, 0);
+      .reduce((sum, item) => sum + Number(item.amount), 0);
 
     monthlyData.push(total);
   }
@@ -663,7 +692,7 @@ if (endDate) {
   endDate.addEventListener("change", renderTransactions);
 }
 
-// Reset all filters.
+// Reset all transaction history filters.
 if (clearFiltersButton) {
   clearFiltersButton.addEventListener("click", () => {
     if (searchInput) searchInput.value = "";
@@ -673,6 +702,31 @@ if (clearFiltersButton) {
     if (endDate) endDate.value = "";
 
     renderTransactions();
+  });
+}
+
+// Apply date-wise dashboard report.
+if (applyDashboardDates) {
+  applyDashboardDates.addEventListener("click", () => {
+    const fromDate = dashboardStartDate.value;
+    const toDate = dashboardEndDate.value;
+
+    if (fromDate && toDate && fromDate > toDate) {
+      alert("From Date cannot be later than To Date.");
+      return;
+    }
+
+    updateDateRangeReport();
+  });
+}
+
+// Reset date-wise dashboard report.
+if (resetDashboardDates) {
+  resetDashboardDates.addEventListener("click", () => {
+    dashboardStartDate.value = "";
+    dashboardEndDate.value = "";
+
+    updateDateRangeReport();
   });
 }
 
@@ -710,7 +764,6 @@ form.addEventListener("submit", async function(event) {
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
 
-  // Keep original date when editing.
   const existingTransaction = transactions.find(
     item => item.id === editingTransactionId
   );
@@ -762,6 +815,7 @@ form.addEventListener("submit", async function(event) {
 
 // Initial loading
 loadTransactions();
+
 
 
 
