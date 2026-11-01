@@ -17,6 +17,7 @@ body {
     margin: auto;
 }
 
+/* Header */
 header {
     margin-bottom: 35px;
 }
@@ -31,6 +32,7 @@ header p {
     margin-top: 8px;
 }
 
+/* Summary Cards */
 .summary {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -43,6 +45,12 @@ header p {
     padding: 25px;
     border-radius: 14px;
     border: 1px solid #263750;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    border-color: #3b82f6;
 }
 
 .card h3 {
@@ -56,6 +64,7 @@ header p {
     color: #4ade80;
 }
 
+/* Form and History */
 .form-section,
 .history {
     background: #172338;
@@ -71,6 +80,7 @@ header p {
     color: #60a5fa;
 }
 
+/* Transaction Form */
 form {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
@@ -79,34 +89,207 @@ form {
 
 input,
 select {
+    width: 100%;
     padding: 14px;
     border: 1px solid #334155;
     border-radius: 8px;
     background: #0b1220;
     color: white;
     min-width: 0;
+    font-size: 14px;
+    outline: none;
+}
+
+input:focus,
+select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+input::placeholder {
+    color: #64748b;
 }
 
 button {
-    grid-column: 1 / -1;
     padding: 14px;
     border: none;
     border-radius: 8px;
     background: #2563eb;
     color: white;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: bold;
     cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
 }
 
 button:hover {
     background: #1d4ed8;
 }
 
+button:active {
+    transform: scale(0.98);
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+form button {
+    grid-column: 1 / -1;
+}
+
+/* Search and Filter Section */
+.filter-section {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    padding: 18px;
+    margin-bottom: 22px;
+    background: #111c2e;
+    border: 1px solid #26364f;
+    border-radius: 12px;
+}
+
+#searchTransaction {
+    grid-column: 1 / -1;
+    border-color: #3b82f6;
+}
+
+.filter-section label {
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: bold;
+    align-self: end;
+    margin-bottom: -8px;
+}
+
+.filter-section input[type="date"] {
+    color-scheme: dark;
+}
+
+#clearFilters {
+    grid-column: 1 / -1;
+    background: #334155;
+    border: 1px solid #475569;
+}
+
+#clearFilters:hover {
+    background: #475569;
+}
+
+/* Transaction History */
 #transaction-list {
     color: #cbd5e1;
 }
 
+.transaction-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #111c2e;
+    border: 1px solid #26364f;
+    padding: 16px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+}
+
+.transaction-item strong {
+    color: #f1f5f9;
+    font-size: 16px;
+}
+
+.transaction-item p {
+    color: #94a3b8;
+    font-size: 13px;
+    margin-top: 6px;
+}
+
+.transaction-item span {
+    color: #4ade80;
+    font-weight: bold;
+}
+
+.transaction-item button {
+    padding: 9px 14px;
+    font-size: 13px;
+}
+
+.transaction-item button:last-child {
+    background: #dc2626;
+}
+
+.transaction-item button:last-child:hover {
+    background: #b91c1c;
+}
+
+/* Analytics */
+.charts-section {
+    margin-top: 30px;
+}
+
+.charts-section h2 {
+    color: #60a5fa;
+    margin-bottom: 20px;
+}
+
+.chart-container {
+    background: #111c2e;
+    padding: 24px;
+    margin-bottom: 24px;
+    border-radius: 16px;
+    border: 1px solid #26364f;
+    min-height: 300px;
+}
+
+.chart-container h3 {
+    color: #e2e8f0;
+    margin-bottom: 20px;
+}
+
+.chart-container canvas {
+    max-height: 280px;
+}
+
+/* Monthly Report */
+.monthly-report {
+    margin-top: 30px;
+}
+
+.monthly-report h2 {
+    color: #60a5fa;
+    margin-bottom: 20px;
+}
+
+.monthly-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.report-card {
+    background: #111c2e;
+    padding: 24px;
+    border-radius: 16px;
+    border: 1px solid #26364f;
+}
+
+.report-card h3 {
+    color: #94a3b8;
+    font-size: 16px;
+}
+
+.report-card p {
+    color: #22c55e;
+    font-size: 28px;
+    font-weight: bold;
+    margin-top: 12px;
+}
+
+/* Tablet and Mobile */
 @media (max-width: 700px) {
     body {
         padding: 15px;
@@ -123,83 +306,30 @@ button:hover {
     header h1 {
         font-size: 28px;
     }
+
+    .chart-container {
+        padding: 15px;
+        min-height: 260px;
+    }
+
+    .monthly-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-section {
+        grid-template-columns: 1fr;
+        padding: 14px;
+    }
+
+    #searchTransaction,
+    #clearFilters {
+        grid-column: 1;
+    }
+
+    .transaction-item {
+        align-items: flex-start;
+    }
 }
 
-
-.charts-section {
-  margin-top: 30px;
-}
-
-.charts-section h2 {
-  color: #60a5fa;
-  margin-bottom: 20px;
-}
-
-.chart-container {
-  background: #111c2e;
-  padding: 24px;
-  margin-bottom: 24px;
-  border-radius: 16px;
-  border: 1px solid #26364f;
-  min-height: 300px;
-}
-
-.chart-container h3 {
-  color: #e2e8f0;
-  margin-bottom: 20px;
-}
-
-.chart-container canvas {
-  max-height: 280px;
-}
-
-@media (max-width: 700px) {
-  .chart-container {
-    padding: 15px;
-    min-height: 260px;
-  }
-}
-
-
-.monthly-report {
-  margin-top: 30px;
-}
-
-.monthly-report h2 {
-  color: #60a5fa;
-  margin-bottom: 20px;
-}
-
-.monthly-summary {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.report-card {
-  background: #111c2e;
-  padding: 24px;
-  border-radius: 16px;
-  border: 1px solid #26364f;
-}
-
-.report-card h3 {
-  color: #94a3b8;
-  font-size: 16px;
-}
-
-.report-card p {
-  color: #22c55e;
-  font-size: 28px;
-  font-weight: bold;
-  margin-top: 12px;
-}
-
-@media (max-width: 700px) {
-  .monthly-summary {
-    grid-template-columns: 1fr;
-  }
-}
 
 
