@@ -35,6 +35,50 @@
 
         </section>
 
+        <!-- Date-wise Dashboard Analytics -->
+        <section class="monthly-report">
+
+            <h2>Date-wise Financial Report</h2>
+
+            <div class="filter-section">
+
+                <label for="dashboardStartDate">From Date</label>
+                <input type="date" id="dashboardStartDate">
+
+                <label for="dashboardEndDate">To Date</label>
+                <input type="date" id="dashboardEndDate">
+
+                <button type="button" id="applyDashboardDates">
+                    Apply Date Range
+                </button>
+
+                <button type="button" id="resetDashboardDates">
+                    Reset
+                </button>
+
+            </div>
+
+            <div class="monthly-summary">
+
+                <div class="report-card">
+                    <h3>Period Income</h3>
+                    <p id="dateRangeIncome">₹0.00</p>
+                </div>
+
+                <div class="report-card">
+                    <h3>Period Expenses</h3>
+                    <p id="dateRangeExpenses">₹0.00</p>
+                </div>
+
+                <div class="report-card">
+                    <h3>Period Balance</h3>
+                    <p id="dateRangeBalance">₹0.00</p>
+                </div>
+
+            </div>
+
+        </section>
+
         <section class="form-section">
             <h2>Add Transaction</h2>
 
@@ -179,6 +223,7 @@
 
 </body>
 </html>
+
 
 
 
