@@ -84,6 +84,51 @@
             </div>
 
         </section>
+        
+<!-- Budget Management -->
+<section class="monthly-report">
+
+    <h2>Monthly Budget Management</h2>
+
+    <div class="filter-section">
+
+        <label for="monthlyBudget">Set Monthly Budget (₹)</label>
+
+        <input
+            type="number"
+            id="monthlyBudget"
+            placeholder="Enter your monthly budget"
+            min="1"
+            step="0.01"
+        >
+
+        <button type="button" id="saveBudget">
+            Save Budget
+        </button>
+
+    </div>
+
+    <div class="monthly-summary">
+
+        <div class="report-card">
+            <h3>Monthly Budget</h3>
+            <p id="budgetAmount">₹0.00</p>
+        </div>
+
+        <div class="report-card">
+            <h3>Monthly Spending</h3>
+            <p id="budgetSpent">₹0.00</p>
+        </div>
+
+        <div class="report-card">
+            <h3>Remaining Budget</h3>
+            <p id="budgetRemaining">₹0.00</p>
+        </div>
+
+    </div>
+
+</section>
+
 
         <section class="form-section">
             <h2>Add Transaction</h2>
