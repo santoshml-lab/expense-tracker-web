@@ -37,6 +37,13 @@ function toISODate(dateString) {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// Chart references
+let incomeExpenseChart = null;
+let categoryChart = null;
+let monthlyChart = null;
+let dateRangeChart = null;
+
+// Load transactions from backend
 async function loadTransactions() {
   try {
     transactionList.textContent = "Loading transactions...";
@@ -57,9 +64,6 @@ async function loadTransactions() {
 
     renderTransactions();
 
-    // Refresh date-wise report after loading data
-    updateDateRangeReport();
-
   } catch (error) {
     console.error(error);
     transactionList.textContent =
@@ -67,6 +71,7 @@ async function loadTransactions() {
   }
 }
 
+// Update main financial summary
 function updateSummary() {
   const income = transactions
     .filter(item => item.type === "income")
@@ -86,16 +91,14 @@ function updateSummary() {
     moneyFormat.format(income - expenses);
 }
 
-// Date-wise dashboard report
+// Date-wise dashboard report and chart
 function updateDateRangeReport() {
-  if (
-    !dashboardStartDate ||
-    !dashboardEndDate
-  ) return;
+  if (!dashboardStartDate || !dashboardEndDate) return;
 
   const fromDate = dashboardStartDate.value;
   const toDate = dashboardEndDate.value;
 
+  // Filter transactions using dashboard date range
   const dateRangeTransactions = transactions.filter(item => {
     const transactionDate = toISODate(item.date);
 
@@ -105,10 +108,12 @@ function updateDateRangeReport() {
     return matchesStart && matchesEnd;
   });
 
+  // Calculate income
   const income = dateRangeTransactions
     .filter(item => item.type === "income")
     .reduce((sum, item) => sum + Number(item.amount), 0);
 
+  // Calculate expenses
   const expenses = dateRangeTransactions
     .filter(item => item.type === "expense")
     .reduce((sum, item) => sum + Number(item.amount), 0);
@@ -123,9 +128,116 @@ function updateDateRangeReport() {
 
   document.getElementById("dateRangeBalance").textContent =
     moneyFormat.format(balance);
+
+  // Prepare date-wise chart data
+  const dailyData = {};
+
+  dateRangeTransactions.forEach(item => {
+    const date = toISODate(item.date);
+
+    if (!dailyData[date]) {
+      dailyData[date] = {
+        income: 0,
+        expenses: 0
+      };
+    }
+
+    if (item.type === "income") {
+      dailyData[date].income += Number(item.amount);
+    } else if (item.type === "expense") {
+      dailyData[date].expenses += Number(item.amount);
+    }
+  });
+
+  // Sort dates chronologically
+  const sortedDates = Object.keys(dailyData).sort();
+
+  const labels = sortedDates.map(date => {
+    const [year, month, day] = date.split("-");
+    return `${day}/${month}/${year}`;
+  });
+
+  const incomeData = sortedDates.map(
+    date => dailyData[date].income
+  );
+
+  const expenseData = sortedDates.map(
+    date => dailyData[date].expenses
+  );
+
+  // Get chart canvas
+  const chartCanvas = document.getElementById("dateRangeChart");
+
+  if (!chartCanvas || typeof Chart === "undefined") return;
+
+  // Remove previous chart before creating a new one
+  if (dateRangeChart) {
+    dateRangeChart.destroy();
+  }
+
+  // Create date-wise income and expense chart
+  dateRangeChart = new Chart(chartCanvas, {
+    type: "bar",
+
+    data: {
+      labels: labels,
+
+      datasets: [
+        {
+          label: "Income (₹)",
+          data: incomeData,
+          backgroundColor: "#22c55e",
+          borderRadius: 6
+        },
+        {
+          label: "Expenses (₹)",
+          data: expenseData,
+          backgroundColor: "#ef4444",
+          borderRadius: 6
+        }
+      ]
+    },
+
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+
+      plugins: {
+        legend: {
+          display: true,
+          position: "top"
+        },
+
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${moneyFormat.format(context.raw)}`;
+            }
+          }
+        }
+      },
+
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: "Amount (₹)"
+          }
+        },
+
+        x: {
+          title: {
+            display: true,
+            text: "Transaction Date"
+          }
+        }
+      }
+    }
+  });
 }
 
-// Apply all selected filters to transactions.
+// Apply all selected filters to transactions
 function getFilteredTransactions() {
   const searchText = searchInput
     ? searchInput.value.trim().toLowerCase()
@@ -173,7 +285,7 @@ function getFilteredTransactions() {
   });
 }
 
-// Export filtered transactions as CSV.
+// Export filtered transactions as CSV
 function exportTransactionsToCSV() {
   const filteredTransactions = getFilteredTransactions();
 
@@ -235,7 +347,7 @@ function exportTransactionsToCSV() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Export filtered transactions as PDF.
+// Export filtered transactions as PDF
 function exportTransactionsToPDF() {
   const filteredTransactions = getFilteredTransactions();
 
@@ -370,6 +482,7 @@ function exportTransactionsToPDF() {
   pdf.save("expense-report.pdf");
 }
 
+// Render transaction history
 function renderTransactions() {
   transactionList.replaceChildren();
 
@@ -430,7 +543,7 @@ function renderTransactions() {
   updateDateRangeReport();
 }
 
-// Fill the form with existing transaction details.
+// Fill form with existing transaction details
 function editTransaction(item) {
   editingTransactionId = item.id;
 
@@ -451,7 +564,7 @@ function editTransaction(item) {
   });
 }
 
-// Save edited transaction using PUT API.
+// Save edited transaction using PUT API
 async function updateTransaction(transaction) {
   const response = await fetch(
     `${API_URL}/transactions/${editingTransactionId}`,
@@ -482,6 +595,7 @@ async function updateTransaction(transaction) {
   await loadTransactions();
 }
 
+// Delete transaction
 async function deleteTransaction(id) {
   try {
     const response = await fetch(`${API_URL}/transactions/${id}`, {
@@ -500,10 +614,7 @@ async function deleteTransaction(id) {
   }
 }
 
-let incomeExpenseChart = null;
-let categoryChart = null;
-let monthlyChart = null;
-
+// Update income and category charts
 function updateCharts() {
   const incomeCanvas =
     document.getElementById("incomeExpenseChart");
@@ -671,7 +782,7 @@ function updateMonthlyReport() {
   });
 }
 
-// Search and filter event listeners.
+// Search and filter event listeners
 if (searchInput) {
   searchInput.addEventListener("input", renderTransactions);
 }
@@ -692,7 +803,7 @@ if (endDate) {
   endDate.addEventListener("change", renderTransactions);
 }
 
-// Reset all transaction history filters.
+// Reset transaction history filters
 if (clearFiltersButton) {
   clearFiltersButton.addEventListener("click", () => {
     if (searchInput) searchInput.value = "";
@@ -705,7 +816,7 @@ if (clearFiltersButton) {
   });
 }
 
-// Apply date-wise dashboard report.
+// Apply dashboard date range
 if (applyDashboardDates) {
   applyDashboardDates.addEventListener("click", () => {
     const fromDate = dashboardStartDate.value;
@@ -720,7 +831,7 @@ if (applyDashboardDates) {
   });
 }
 
-// Reset date-wise dashboard report.
+// Reset dashboard date range
 if (resetDashboardDates) {
   resetDashboardDates.addEventListener("click", () => {
     dashboardStartDate.value = "";
@@ -730,17 +841,17 @@ if (resetDashboardDates) {
   });
 }
 
-// CSV export button event.
+// CSV export button
 if (exportCSVButton) {
   exportCSVButton.addEventListener("click", exportTransactionsToCSV);
 }
 
-// PDF export button event.
+// PDF export button
 if (exportPDFButton) {
   exportPDFButton.addEventListener("click", exportTransactionsToPDF);
 }
 
-// Add or update a transaction.
+// Add or update transaction
 form.addEventListener("submit", async function(event) {
   event.preventDefault();
 
@@ -815,6 +926,7 @@ form.addEventListener("submit", async function(event) {
 
 // Initial loading
 loadTransactions();
+
 
 
 
